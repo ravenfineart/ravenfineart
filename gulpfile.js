@@ -1,6 +1,10 @@
 var gulp        = require('gulp');
+var gulpIf      = require('gulp-if');
+var useref      = require('gulp-useref');
 var browserSync = require('browser-sync').create();
 var sass        = require('gulp-sass');
+var uglify      = require('gulp-uglify');
+var cssnano     = require('gulp-cssnano');
 var fileinclude = require('gulp-file-include');
 var inject      = require('gulp-inject');
 
@@ -29,6 +33,14 @@ gulp.task('js', function() {
         .pipe(browserSync.stream());
 });
 
+gulp.task('useref', function() {
+  return gulp.src('./*.html')
+    .pipe(useref())
+    .pipe(gulpIf('*.js', uglify()))
+    .pipe(gulpIf('*.css', cssnano()))
+		.pipe(gulp.dest(config.distDir));
+});
+
 gulp.task('index', ['useref'], function () {
   var target = gulp.src('./*.html');
   var sources = gulp.src(['./dist/js/**/*.js', './dist/css/**/*.css'], {read: false});
@@ -38,7 +50,7 @@ gulp.task('index', ['useref'], function () {
 });
 
 // Static Server + watching scss/html files
-gulp.task('serve', ['sass', 'fileinclude'], function() {
+gulp.task('serve', ['sass', 'fileinclude', 'index'], function() {
 
     browserSync.init({
         server: "./dist"
