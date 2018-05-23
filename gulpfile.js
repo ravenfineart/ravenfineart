@@ -1,17 +1,37 @@
-var gulp        = require('gulp');
-var gulpIf      = require('gulp-if');
-var useref      = require('gulp-useref');
-var browserSync = require('browser-sync').create();
-var sass        = require('gulp-sass');
-var uglify      = require('gulp-uglify');
-var cssnano     = require('gulp-cssnano');
-var fileinclude = require('gulp-file-include');
-var inject      = require('gulp-inject');
+var gulp          = require('gulp');
+var gulpIf        = require('gulp-if');
+var useref        = require('gulp-useref');
+var gulpSequence  = require('gulp-sequence');
+var browserSync   = require('browser-sync').create();
+var sass          = require('gulp-sass');
+var concat        = require('gulp-concat');
+var rename        = require('gulp-rename');
+var uglify        = require('gulp-uglify');
+var cssnano       = require('gulp-cssnano');
+var fileinclude   = require('gulp-file-include');
+var inject        = require('gulp-inject');
+var imagemin      = require('gulp-imagemin');
+var sourcemaps    = require('gulp-sourcemaps');
 
 var config = {
     buildDir: './build',
     distDir: './dist',
 };
+
+gulp.task('minify', function(){
+  return gulp.src('./build/js/*.js')
+    .pipe(concat('all.js'))
+    .pipe(gulp.dest(config.distDir + '/js'))
+    .pipe(rename('all.min.js'))
+    .pipe(uglify())
+    .pipe(gulp.dest(config.distDir + '/js'));
+});
+
+gulp.task('minify-css', function() {
+    return gulp.src('./dist/css/styles.css')
+        .pipe(cssnano())
+        .pipe(gulp.dest('./dist/css-min/'));
+});
 
 gulp.task('fileinclude', function() {
   gulp.src(['./build/*.html'])
@@ -19,15 +39,22 @@ gulp.task('fileinclude', function() {
     .pipe(gulp.dest('./dist'));
 });
 
-// Compile sass into CSS & auto-inject into browsers
 gulp.task('sass', function() {
-    return gulp.src(['node_modules/bootstrap/scss/bootstrap.scss', 'src/scss/*.scss'])
-        .pipe(sass())
-        .pipe(gulp.dest("dist/css"))
-        .pipe(browserSync.stream());
+    return gulp.src(config.buildDir + '/scss/**/*.scss')
+    .pipe(sourcemaps.init())  // Process the original sources
+    .pipe(sass())
+    .pipe(sourcemaps.write()) // Add the map to modified source.
+    .pipe(gulp.dest(config.distDir + '/css'));
 });
 
-// Move the javascript files into our /src/js folder
+gulp.task('sass-ravenfineart', function() {
+    return gulp.src(config.buildDir + '/scss-ravenfineart/**/*.scss')
+    .pipe(sourcemaps.init())  // Process the original sources
+    .pipe(sass())
+    .pipe(sourcemaps.write()) // Add the map to modified source.
+    .pipe(gulp.dest(config.distDir + '/css-ravenfineart'));
+});
+
 gulp.task('js', function() {
     return gulp.src(['node_modules/bootstrap/dist/js/bootstrap.min.js', 'node_modules/jquery/dist/jquery.min.js', 'node_modules/tether/dist/js/tether.min.js'])
         .pipe(gulp.dest("dist/js"))
@@ -56,18 +83,31 @@ gulp.task('images', function(){
   .pipe(gulp.dest('dist/images'))
 });
 
-// Static Server + watching scss/html files
-gulp.task('serve', ['sass', 'fileinclude', 'index'], function() {
-
-    browserSync.init({
-        server: "./dist"
-    });
-
-gulp.task('html-watch', ['index'], function() { browserSync.reload(); });
-
-    gulp.watch('./**/*.html', ['html-watch']);
-    gulp.watch(['node_modules/bootstrap/scss/bootstrap.scss', 'dist/scss/*.scss'], ['sass']);
-    gulp.watch("dist/*.html").on('change', browserSync.reload);
+gulp.task('sass-watch', ['sass'], function() {
+    browserSync.reload();
+});
+gulp.task('sass-ravenfineart-watch', ['sass-ravenfineart'], function() {
+    browserSync.reload();
+});
+gulp.task('html-watch', ['index'], function() {
+    browserSync.reload();
+});
+gulp.task('js-watch', ['minify'], function() {
+    browserSync.reload();
 });
 
-gulp.task('default', ['js','serve']);
+gulp.task('serve', ['sass', 'sass-ravenfineart', 'index', 'minify'], function () {
+  browserSync.init({
+    server: {
+      baseDir: "./dist"
+    }
+});
+gulp.watch('./build/**/*.html', ['html-watch']);
+gulp.watch(config.buildDir + '/scss/**/*.scss', ['sass-watch']);
+gulp.watch(config.buildDir + '/scss-ravenfineart/**/*.scss', ['sass-ravenfineart-watch']);
+gulp.watch(config.buildDir + '/js/**/*.js', ['js-watch']);
+});
+
+gulp.task('default', gulpSequence(['serve', 'images'], 'minify-css'));
+
+//END GULP.JS
