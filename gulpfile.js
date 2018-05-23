@@ -9,11 +9,12 @@ var fileinclude = require('gulp-file-include');
 var inject      = require('gulp-inject');
 
 var config = {
+    buildDir: './build',
     distDir: './dist',
 };
 
 gulp.task('fileinclude', function() {
-  gulp.src(['./*.html'])
+  gulp.src(['./build/*.html'])
     .pipe(fileinclude())
     .pipe(gulp.dest('./dist'));
 });
@@ -42,11 +43,17 @@ gulp.task('useref', function() {
 });
 
 gulp.task('index', ['useref'], function () {
-  var target = gulp.src('./*.html');
+  var target = gulp.src('./build/*.html');
   var sources = gulp.src(['./dist/js/**/*.js', './dist/css/**/*.css'], {read: false});
  	return target.pipe(inject(sources, {ignorePath: 'dist/', addRootSlash: false}))
  	.pipe(gulpIf('*.html', fileinclude({prefix: '@@', basepath: '@file'})))
 	.pipe(gulp.dest(config.distDir));
+});
+
+gulp.task('images', function(){
+  return gulp.src('build/images/**/*.+(png|jpg|gif|svg)')
+  .pipe(imagemin())
+  .pipe(gulp.dest('dist/images'))
 });
 
 // Static Server + watching scss/html files
